@@ -21,7 +21,7 @@ resnet50.eval().to(device)
 
 # imgs here
 image_paths = [
-    "beach-test-1.jpg"
+    "images/hammer-test-1.jpg"
 ]
 
 preprocess = transforms.Compose([
