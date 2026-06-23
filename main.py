@@ -12,12 +12,13 @@ resnet50 = torch.hub.load(
     'nvidia_resnet50',
     pretrained=True
 )
+
+resnet50 = resnet50.to(device).eval()
+
 utils = torch.hub.load(
     'NVIDIA/DeepLearningExamples:torchhub',
     'nvidia_convnets_processing_utils'
 )
-
-resnet50.eval().to(device)
 
 # imgs here
 image_paths = [
@@ -36,19 +37,29 @@ preprocess = transforms.Compose([
 
 # inference
 images = []
+valid_paths = []
+
 for path in image_paths:
-    img = Image.open(path).convert("RGB")
-    images.append(preprocess(img))
+    try:
+        img = Image.open(path).convert("RGB")
+        images.append(preprocess(img))
+        valid_paths.append(path)
+    except Exception as e:
+        # crash prevention for failed img loads
+        print(f"Failed to load {path}: {e}")
 
 batch = torch.stack(images).to(device)
 
-with torch.no_grad():
-    output = torch.nn.functional.softmax(resnet50(batch), dim=1)
+# use inference_mode bc it's faster than no_grad
+with torch.inference_mode():
+    # (*note: not apply softmax)
+    output = resnet50(batch)
 
-results = utils.pick_n_best(predictions=output, n=5)
+    # keep the logits stable; utils handle ranking
+    results = utils.pick_n_best(predictions=output, n=5)
 
 # print results
-for path, result in zip(image_paths, results):
+for path, result in zip(valid_paths, results):
     print("\n====================")
     print("Image:", path)
     print(result)
